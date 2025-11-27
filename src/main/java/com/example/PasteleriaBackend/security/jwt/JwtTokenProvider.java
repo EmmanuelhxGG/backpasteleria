@@ -15,6 +15,7 @@ import com.example.PasteleriaBackend.security.UserPrincipal;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jws;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 
@@ -22,32 +23,64 @@ import io.jsonwebtoken.security.Keys;
 public class JwtTokenProvider {
 
     private final SecretKey secretKey;
-    private final int expirationMinutes;
+    private final int accessExpirationMinutes;
+    private final int refreshExpirationMinutes;
 
     public JwtTokenProvider(JwtProperties properties) {
         this.secretKey = Keys.hmacShaKeyFor(properties.getSecret().getBytes(StandardCharsets.UTF_8));
-        this.expirationMinutes = properties.getExpirationMinutes();
+        this.accessExpirationMinutes = properties.getExpirationMinutes();
+        this.refreshExpirationMinutes = properties.getRefreshExpirationMinutes();
     }
 
-    public String generateToken(UserPrincipal principal) {
+    public TokenDetails generateAccessToken(UserPrincipal principal) {
+        return buildToken(principal, TokenType.ACCESS, accessExpirationMinutes);
+    }
+
+    public TokenDetails generateRefreshToken(UserPrincipal principal) {
+        return buildToken(principal, TokenType.REFRESH, refreshExpirationMinutes);
+    }
+
+    public Jws<Claims> validateAccessToken(String token) {
+        return validateToken(token, TokenType.ACCESS);
+    }
+
+    public Jws<Claims> validateRefreshToken(String token) {
+        return validateToken(token, TokenType.REFRESH);
+    }
+
+    private TokenDetails buildToken(UserPrincipal principal, TokenType type, int expirationMinutes) {
         Instant now = Instant.now();
         Instant expiry = now.plus(expirationMinutes, ChronoUnit.MINUTES);
-        return Jwts.builder()
+        String token = Jwts.builder()
             .setSubject(principal.getId())
             .setIssuedAt(Date.from(now))
             .setExpiration(Date.from(expiry))
             .addClaims(Map.of(
                 "email", principal.getUsername(),
-                "role", principal.getRole().name()
+                "role", principal.getRole().name(),
+                "tokenType", type.name()
             ))
             .signWith(secretKey)
             .compact();
+        return new TokenDetails(token, expiry);
     }
 
-    public Jws<Claims> validateToken(String token) {
-        return Jwts.parserBuilder()
+    private Jws<Claims> validateToken(String token, TokenType expectedType) {
+        Jws<Claims> claims = Jwts.parserBuilder()
             .setSigningKey(secretKey)
             .build()
             .parseClaimsJws(token);
+        String type = claims.getBody().get("tokenType", String.class);
+        if (type == null || !expectedType.name().equalsIgnoreCase(type)) {
+            throw new JwtException("Invalid token type");
+        }
+        return claims;
     }
+
+    public enum TokenType {
+        ACCESS,
+        REFRESH
+    }
+
+    public record TokenDetails(String token, Instant expiresAt) { }
 }

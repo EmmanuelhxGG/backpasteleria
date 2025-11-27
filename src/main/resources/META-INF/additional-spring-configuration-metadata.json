@@ -14,6 +14,11 @@
       "name": "app.security.jwt.expiration-minutes",
       "type": "java.lang.Integer",
       "description": "Lifetime of generated JWT tokens expressed in minutes."
+    },
+    {
+      "name": "app.security.jwt.refresh-expiration-minutes",
+      "type": "java.lang.Integer",
+      "description": "Lifetime of refresh tokens expressed in minutes before they become invalid."
     }
   ]
 }

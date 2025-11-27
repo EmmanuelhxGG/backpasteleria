@@ -6,4 +6,6 @@ import com.example.PasteleriaBackend.web.dto.LoginResponse;
 public interface AuthService {
 
     LoginResponse login(LoginRequest request);
+
+    LoginResponse refresh(String refreshToken);
 }
