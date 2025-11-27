@@ -1,0 +1,24 @@
+{
+  "properties": [
+    {
+      "name": "app.cors.allowed-origins",
+      "type": "java.util.List<java.lang.String>",
+      "description": "List of allowed origins allowed by the CORS filter."
+    },
+    {
+      "name": "app.security.jwt.secret",
+      "type": "java.lang.String",
+      "description": "Secret key used to sign JWT tokens."
+    },
+    {
+      "name": "app.security.jwt.expiration-minutes",
+      "type": "java.lang.Integer",
+      "description": "Lifetime of generated JWT tokens expressed in minutes."
+    },
+    {
+      "name": "app.security.jwt.refresh-expiration-minutes",
+      "type": "java.lang.Integer",
+      "description": "Lifetime of refresh tokens expressed in minutes."
+    }
+  ]
+}
