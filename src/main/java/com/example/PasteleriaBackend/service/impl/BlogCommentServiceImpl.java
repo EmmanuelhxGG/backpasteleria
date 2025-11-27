@@ -8,10 +8,12 @@ import org.springframework.util.StringUtils;
 
 import com.example.PasteleriaBackend.domain.model.BlogComment;
 import com.example.PasteleriaBackend.domain.model.BlogPost;
+import com.example.PasteleriaBackend.domain.model.Product;
 import com.example.PasteleriaBackend.domain.model.User;
 import com.example.PasteleriaBackend.domain.model.UserStatus;
 import com.example.PasteleriaBackend.domain.repository.BlogCommentRepository;
 import com.example.PasteleriaBackend.domain.repository.BlogPostRepository;
+import com.example.PasteleriaBackend.domain.repository.ProductRepository;
 import com.example.PasteleriaBackend.domain.repository.UserRepository;
 import com.example.PasteleriaBackend.service.BlogCommentService;
 import com.example.PasteleriaBackend.web.dto.BlogCommentCreateRequest;
@@ -22,25 +24,32 @@ import com.example.PasteleriaBackend.web.dto.BlogCommentUpdateRequest;
 @Transactional
 public class BlogCommentServiceImpl implements BlogCommentService {
 
+    private static final String PRODUCT_THREAD_PREFIX = "product:";
+
     private final BlogPostRepository blogPostRepository;
     private final BlogCommentRepository blogCommentRepository;
     private final UserRepository userRepository;
+    private final ProductRepository productRepository;
 
     public BlogCommentServiceImpl(
         BlogPostRepository blogPostRepository,
         BlogCommentRepository blogCommentRepository,
-        UserRepository userRepository
+        UserRepository userRepository,
+        ProductRepository productRepository
     ) {
         this.blogPostRepository = blogPostRepository;
         this.blogCommentRepository = blogCommentRepository;
         this.userRepository = userRepository;
+        this.productRepository = productRepository;
     }
 
     @Override
     public BlogCommentResponse addComment(String userId, String postSlug, BlogCommentCreateRequest request) {
         User author = findActiveUser(userId);
-        BlogPost post = blogPostRepository.findBySlug(postSlug)
-            .orElseThrow(() -> new IllegalArgumentException("Entrada de blog no encontrada"));
+        BlogPost post = resolveTargetPost(postSlug);
+        if (post == null) {
+            throw new IllegalArgumentException("Entrada de blog no encontrada");
+        }
 
         BlogComment comment = new BlogComment();
         comment.setPost(post);
@@ -78,6 +87,36 @@ public class BlogCommentServiceImpl implements BlogCommentService {
         UUID id = parseUuid(commentId, "Identificador de comentario inválido");
         return blogCommentRepository.findById(id)
             .orElseThrow(() -> new IllegalArgumentException("Comentario no encontrado"));
+    }
+
+    private BlogPost resolveTargetPost(String slug) {
+        return blogPostRepository.findBySlug(slug)
+            .orElseGet(() -> maybeCreateProductThread(slug));
+    }
+
+    private BlogPost maybeCreateProductThread(String slug) {
+        if (!StringUtils.hasText(slug) || !slug.startsWith(PRODUCT_THREAD_PREFIX)) {
+            return null;
+        }
+        String productId = slug.substring(PRODUCT_THREAD_PREFIX.length());
+        if (!StringUtils.hasText(productId)) {
+            return null;
+        }
+        Product product = productRepository.findById(productId)
+            .orElseThrow(() -> new IllegalArgumentException("Producto no encontrado"));
+
+        BlogPost placeholder = new BlogPost();
+        placeholder.setSlug(slug);
+        placeholder.setTitle("Opiniones sobre " + product.getName());
+        String hero = StringUtils.hasText(product.getImageUrl()) ? product.getImageUrl() : "/img/placeholder.png";
+        placeholder.setHeroImage(hero);
+        placeholder.setHeroCaption(StringUtils.hasText(product.getCategory()) ? product.getCategory() : null);
+        String excerpt = StringUtils.hasText(product.getDescription())
+            ? product.getDescription()
+            : "Comparte tu experiencia con " + product.getName();
+        placeholder.setExcerpt(excerpt);
+        placeholder.setBody("[]");
+        return blogPostRepository.save(placeholder);
     }
 
     private User findActiveUser(String userId) {

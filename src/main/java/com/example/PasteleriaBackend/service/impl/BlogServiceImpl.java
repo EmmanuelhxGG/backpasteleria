@@ -42,6 +42,7 @@ public class BlogServiceImpl implements BlogService {
     @Override
     public List<BlogPostSummaryResponse> findAll() {
         return blogPostRepository.findAll(Sort.by(Sort.Direction.DESC, "createdAt")).stream()
+            .filter(post -> !post.getSlug().startsWith("product:"))
             .map(this::toSummary)
             .collect(Collectors.toList());
     }
