@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.example.PasteleriaBackend.service.AuthService;
 import com.example.PasteleriaBackend.web.dto.LoginRequest;
 import com.example.PasteleriaBackend.web.dto.LoginResponse;
+import com.example.PasteleriaBackend.web.dto.TokenRefreshRequest;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -29,5 +30,11 @@ public class AuthController {
     @Operation(summary = "Iniciar sesión con correo y contraseña", description = "Devuelve un token JWT para autenticación.")
     public ResponseEntity<LoginResponse> login(@Validated @RequestBody LoginRequest request) {
         return ResponseEntity.ok(authService.login(request));
+    }
+
+    @PostMapping("/refresh")
+    @Operation(summary = "Renovar token de acceso", description = "Recibe un refresh token válido y devuelve un nuevo JWT.")
+    public ResponseEntity<LoginResponse> refresh(@Validated @RequestBody TokenRefreshRequest request) {
+        return ResponseEntity.ok(authService.refresh(request));
     }
 }
